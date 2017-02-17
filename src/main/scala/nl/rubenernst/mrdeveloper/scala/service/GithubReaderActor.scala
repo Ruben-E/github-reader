@@ -38,67 +38,45 @@ class GithubReaderActor(stateActor: ActorRef) extends Actor with ActorLogging {
     case HttpResponse(StatusCodes.OK, headers, entity, _) =>
       entity.dataBytes
         .via(Gzip.decoderFlow)
-        //        .runWith(Sink.head)
-        //        .onComplete(response =>
-        //          Source.single(response.get)
         .via(Framing.delimiter(ByteString("\n"), Int.MaxValue))
         .map(_.decodeString(Charset.defaultCharset()))
         .map(_.parseJson)
         .mapConcat(json => {
           json.asJsObject.getFields("type", "repo", "payload") match {
-            case Seq(JsString("CreateEvent"), repositoryObject: JsObject, payloadObject: JsObject) =>
-              val repositoryFields = repositoryObject.getFields("id", "name")
-              val payloadFields = payloadObject.getFields("ref_type", "description")
-
-              (repositoryFields, payloadFields) match {
-                case (Seq(JsNumber(id), JsString(name)), Seq(JsString("repository"), description)) =>
-                  description match {
-                    case JsString(d) => List(NewRepository(id.toLong, name, Some(d)))
-                    case _ => List(NewRepository(id.toLong, name, None))
-                  }
-
-                case _ => List()
-              }
-
-            case Seq(JsString("WatchEvent"), repositoryObject: JsObject, payloadObject: JsObject) =>
-              val repositoryFields = repositoryObject.getFields("id", "name")
-
-              repositoryFields match {
-                case Seq(JsNumber(id), JsString(name)) => List(StarRepository(id.toLong, name))
-                case _ => List()
-              }
-            case _ => List()
+            case Seq(JsString("CreateEvent"), repositoryObject: JsObject, payloadObject: JsObject) => createEvent(repositoryObject, payloadObject)
+            case Seq(JsString("WatchEvent"), repositoryObject: JsObject, payloadObject: JsObject) => watchEvent(repositoryObject, payloadObject)
+            case _ => List.empty
           }
         })
-        //        .mapConcat(jsObject => {
-        //          try {
-        //            val typeString = jsObject.fields.get("type")
-        //            typeString match {
-        //              case Some(JsString("WatchEvent")) => List(WatchedEvent(jsObject))
-        //              case Some(JsString("CreateEvent")) =>
-        //                val payloadOptional = jsObject.fields.get("payload")
-        //                payloadOptional match {
-        //                  case Some(payload) =>
-        //                    payload.asJsObject.fields
-        //                  case None => List()
-        //                }
-        //                List(RepositoryCreatedEvent(jsObject))
-        //              case Some(JsString(e)) => println(e); List()
-        //              case _ => List()
-        //            }
-        //          } catch {
-        //            case e: Exception =>
-        //              log.warning(s"Got Exception while parsing JsObject [$jsObject]", e)
-        //              List()
-        //          }
-        //        })
         .runWith(Sink.foreach(stateActor ! _))
-    //            .runWith(Sink.fold[List[WatchedEvent], WatchedEvent](List())((list, event) => event :: list))
-    //        )
     case HttpResponse(code, _, _, _) =>
       log.info("Request failed, response code: " + code)
     case HttpResponse =>
       log.info("Request failed")
+  }
+
+  def watchEvent(repositoryObject: JsObject, payloadObject: JsObject): List[StarRepository] = {
+    val repositoryFields = repositoryObject.getFields("id", "name")
+
+    repositoryFields match {
+      case Seq(JsNumber(id), JsString(name)) => List(StarRepository(id.toLong, name))
+      case _ => List.empty
+    }
+  }
+
+  def createEvent(repositoryObject: JsObject, payloadObject: JsObject): List[NewRepository] = {
+    val repositoryFields = repositoryObject.getFields("id", "name")
+    val payloadFields = payloadObject.getFields("ref_type", "description")
+
+    (repositoryFields, payloadFields) match {
+      case (Seq(JsNumber(id), JsString(name)), Seq(JsString("repository"), description)) =>
+        description match {
+          case JsString(d) => List(NewRepository(id.toLong, name, Some(d)))
+          case _ => List(NewRepository(id.toLong, name, None))
+        }
+
+      case _ => List.empty
+    }
   }
 }
 
