@@ -62,7 +62,7 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
       fail => log.warning(s"Could not restore $evt because of $fail"),
       repository => updateState(repository)
     )
-    case evt: RepositoryStarred => starRepository(StarRepository(evt.id, evt.fullName)).fold(
+    case evt: RepositoryStarred => starRepository(StarRepository(evt.id, evt.fullName, evt.stars)).fold(
       fail => log.warning(s"Could not restore $evt because of $fail"),
       repository => updateState(repository)
     )
@@ -79,7 +79,7 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
     )
     case cmd: StarRepository => starRepository(cmd).fold(
       fail => sender ! ErrorMessage(s"Error $fail occurred on $cmd"),
-      repository => persist(RepositoryStarred(repository.id, repository.fullName)) {
+      repository => persist(RepositoryStarred(repository.id, repository.fullName, cmd.stars)) {
         event =>
           updateState(repository)
           context.system.eventStream.publish(event)

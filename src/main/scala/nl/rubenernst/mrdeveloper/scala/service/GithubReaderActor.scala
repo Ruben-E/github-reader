@@ -11,8 +11,10 @@ import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.stream.scaladsl.{Framing, Sink}
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings}
 import akka.util.ByteString
-import nl.rubenernst.mrdeveloper.scala.protocol.RepositoryProtocol.{ErrorMessage, NewRepository, StarRepository}
+import nl.rubenernst.mrdeveloper.scala.protocol.RepositoryProtocol.{ErrorMessage, NewRepository, RepositoryCommand, StarRepository}
 import spray.json._
+
+import scala.collection.mutable
 
 /**
   * Created by rubenernst on 19/12/2016.
@@ -27,7 +29,7 @@ class GithubReaderActor(stateActor: ActorRef) extends Actor with ActorLogging {
   def receive: Receive = LoggingReceive {
     case Read(dateTime) =>
       val http = Http(context.system)
-//      http.singleRequest(HttpRequest(uri = "http://data.githubarchive.org/2016-12-19-10.json.gz")).pipeTo(self)
+      http.singleRequest(HttpRequest(uri = "http://data.githubarchive.org/2016-12-19-10.json.gz")).pipeTo(self)
     //      http.singleRequest(HttpRequest(uri = "http://data.githubarchive.org/2016-12-19-11.json.gz")).pipeTo(self)
     //      http.singleRequest(HttpRequest(uri = "http://data.githubarchive.org/2016-12-19-12.json.gz")).pipeTo(self)
     //      http.singleRequest(HttpRequest(uri = "http://data.githubarchive.org/2016-12-19-13.json.gz")).pipeTo(self)
@@ -41,12 +43,18 @@ class GithubReaderActor(stateActor: ActorRef) extends Actor with ActorLogging {
         .via(Framing.delimiter(ByteString("\n"), Int.MaxValue))
         .map(_.decodeString(Charset.defaultCharset()))
         .map(_.parseJson)
-        .mapConcat(json => {
-          json.asJsObject.getFields("type", "repo", "payload") match {
-            case Seq(JsString("CreateEvent"), repositoryObject: JsObject, payloadObject: JsObject) => createEvent(repositoryObject, payloadObject)
-            case Seq(JsString("WatchEvent"), repositoryObject: JsObject, payloadObject: JsObject) => watchEvent(repositoryObject, payloadObject)
-            case _ => List.empty
-          }
+        .sliding(100)
+        .mapConcat(seq => {
+          var events = List.empty[RepositoryCommand]
+          seq.foreach(json => {
+            val event = json.asJsObject.getFields("type", "repo", "payload") match {
+              case Seq(JsString("CreateEvent"), repositoryObject: JsObject, payloadObject: JsObject) => createEvent(repositoryObject, payloadObject)
+              case Seq(JsString("WatchEvent"), repositoryObject: JsObject, payloadObject: JsObject) => watchEvent(repositoryObject, payloadObject)
+              case _ => List.empty
+            }
+            events = events ::: event
+          })
+          events
         })
         .runWith(Sink.foreach(stateActor ! _))
     case HttpResponse(code, _, _, _) =>
@@ -59,7 +67,7 @@ class GithubReaderActor(stateActor: ActorRef) extends Actor with ActorLogging {
     val repositoryFields = repositoryObject.getFields("id", "name")
 
     repositoryFields match {
-      case Seq(JsNumber(id), JsString(name)) => List(StarRepository(id.toLong, name))
+      case Seq(JsNumber(id), JsString(name)) => List(StarRepository(id.toLong, name, 1))
       case _ => List.empty
     }
   }
