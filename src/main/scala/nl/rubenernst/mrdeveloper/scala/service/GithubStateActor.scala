@@ -71,18 +71,18 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
   def receiveCommand: Receive = LoggingReceive {
     case cmd: NewRepository => createRepository(cmd).fold(
       fail => sender ! ErrorMessage(s"Error $fail occurred on $cmd"),
-      repository => persist(RepositoryCreated(repository.id, repository.fullName, repository.description)) {
-        event =>
-          updateState(repository)
-          context.system.eventStream.publish(event)
+      repository => persist(cmd) { _ =>
+        val event = RepositoryCreated(repository.id, repository.fullName, repository.description)
+        updateState(repository)
+        context.system.eventStream.publish(event)
       }
     )
     case cmd: StarRepository => starRepository(cmd).fold(
       fail => sender ! ErrorMessage(s"Error $fail occurred on $cmd"),
-      repository => persist(RepositoryStarred(repository.id, repository.fullName, cmd.stars)) {
-        event =>
-          updateState(repository)
-          context.system.eventStream.publish(event)
+      repository => persist(cmd) { _ =>
+        val event = RepositoryStarred(repository.id, repository.fullName, repository.stars)
+        updateState(repository)
+        context.system.eventStream.publish(event)
       }
     )
     case "print" => println(ListMap(state.repositories.toSeq.sortWith(_._2.stars > _._2.stars): _*).take(10))
@@ -90,9 +90,7 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
 
   def persistenceId: String = "repositories"
 
-  def updateState(repository: Repository): Unit = {
-    state = state.update(repository)
-  }
+  def updateState(repository: Repository): Unit = state = state.update(repository)
 
   def createRepository(cmd: NewRepository): DomainValidation[Repository] =
     state.get(cmd.id) match {
@@ -102,7 +100,7 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
 
   def starRepository(cmd: StarRepository): DomainValidation[Repository] = {
     upsertRepository(NewRepository(cmd.id, cmd.fullName, None)) { repository =>
-      repository.incrementStars(1)
+      repository.incrementStars(cmd.stars)
     }
   }
 
