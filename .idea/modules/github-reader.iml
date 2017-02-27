@@ -24,6 +24,10 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="SBT: com.github.mauricio:db-async-common_2.11:0.2.20:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-parsing_2.11:10.0.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-http_2.11:10.0.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-http-spray-json_2.11:10.0.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-http-core_2.11:10.0.0:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe.akka:akka-testkit_2.11:2.4.17:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe.akka:akka-stream_2.11:2.4.17:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe.akka:akka-stream-testkit_2.11:2.4.17:jar" level="project" />
@@ -49,16 +53,22 @@
     <orderEntry type="library" name="SBT: org.apache.commons:commons-pool2:2.4.2:jar" level="project" />
     <orderEntry type="library" name="SBT: org.apache.commons:commons-dbcp2:2.1.1:jar" level="project" />
     <orderEntry type="library" name="SBT: joda-time:joda-time:2.9.2:jar" level="project" />
-    <orderEntry type="library" name="SBT: io.spray:spray-json_2.11:1.3.2:jar" level="project" />
     <orderEntry type="library" name="SBT: io.netty:netty-all:4.1.1.Final:jar" level="project" />
     <orderEntry type="library" name="SBT: commons-logging:commons-logging:1.2:jar" level="project" />
-    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-parsing_2.11:10.0.0:jar" level="project" />
-    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-http_2.11:10.0.0:jar" level="project" />
-    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-http-spray-json_2.11:10.0.0:jar" level="project" />
-    <orderEntry type="library" name="SBT: com.typesafe.akka:akka-http-core_2.11:10.0.0:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe:ssl-config-core_2.11:0.2.1:jar" level="project" />
     <orderEntry type="library" name="SBT: com.typesafe:config:1.3.0:jar" level="project" />
     <orderEntry type="library" name="SBT: com.okumin:akka-persistence-sql-async_2.11:0.4.0:jar" level="project" />
     <orderEntry type="library" name="SBT: com.github.mauricio:postgresql-async_2.11:0.2.20:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.chuusai:shapeless_2.11:2.3.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.parboiled:parboiled_2.11:2.1.3:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.sangria-graphql:sangria-marshalling-api_2.11:1.0.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.sangria-graphql:sangria-streaming-api_2.11:1.0.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.sangria-graphql:sangria_2.11:1.0.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.typelevel:macro-compat_2.11:1.1.1:jar" level="project" />
+    <orderEntry type="library" name="SBT: io.spray:spray-json_2.11:1.3.3:jar" level="project" />
+    <orderEntry type="library" name="SBT: org.sangria-graphql:sangria-spray-json_2.11:1.0.0:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scala-lang.modules:scala-xml_2.11:1.0.5:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scalactic:scalactic_2.11:3.0.1:jar" level="project" />
+    <orderEntry type="library" scope="TEST" name="SBT: org.scalatest:scalatest_2.11:3.0.1:jar" level="project" />
   </component>
 </module>

@@ -1,12 +1,14 @@
 package nl.rubenernst.mrdeveloper.scala.service
 
+import java.time.LocalDate
+
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
 import akka.persistence.PersistentActor
 import nl.rubenernst.mrdeveloper.scala.protocol.RepositoryProtocol.NewRepository
 import nl.rubenernst.mrdeveloper.scala.{DomainValidation, ValidationKey}
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.{HashMap, ListMap}
 import scalaz.Scalaz._
 import scalaz._
 
@@ -21,11 +23,13 @@ trait RepositoryValidations {
   }
 }
 
-case class Repository(id: Long, fullName: String, description: Option[String], stars: Long) extends RepositoryValidations {
-  def incrementStars(starsToIncrement: Long): DomainValidation[Repository] =
+case class Repository(id: Long, fullName: String, description: Option[String], stars: Map[LocalDate, Long], totalStars: Long) extends RepositoryValidations {
+  def incrementStars(starsToIncrement: Long, date: LocalDate): DomainValidation[Repository] =
     checkStars(starsToIncrement).fold(
       fail => fail.failureNel,
-      success => copy(stars = stars + starsToIncrement).success
+      success => {
+        copy(stars = stars + (date -> (stars.getOrElse(date, 0L) + starsToIncrement)), totalStars = totalStars + starsToIncrement).success
+      }
     )
 }
 
@@ -36,7 +40,7 @@ object Repository extends RepositoryValidations {
   def create(cmd: NewRepository): DomainValidation[Repository] =
     (checkId(cmd.id, IdRequired).toValidationNel |@|
       checkString(cmd.fullName, FullNameRequired).toValidationNel) {
-      case (id, fullName) => Repository(id, fullName, cmd.description, 0L)
+      case (id, fullName) => Repository(id, fullName, cmd.description, HashMap.empty, 0L)
     }
 }
 
@@ -58,13 +62,13 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
   context.system.scheduler.schedule(5 seconds, 5 seconds, self, "print")
 
   def receiveRecover: Receive = LoggingReceive {
-    case evt: RepositoryCreated => createRepository(NewRepository(evt.id, evt.fullName, evt.description)).fold(
-      fail => log.warning(s"Could not restore $evt because of $fail"),
-      repository => updateState(repository)
+    case cmd: NewRepository => createRepository(cmd).fold(
+      fail => sender ! ErrorMessage(s"Error $fail occurred on $cmd"),
+      repository => persist(cmd) { _ => updateState(repository) }
     )
-    case evt: RepositoryStarred => starRepository(StarRepository(evt.id, evt.fullName, evt.stars)).fold(
-      fail => log.warning(s"Could not restore $evt because of $fail"),
-      repository => updateState(repository)
+    case cmd: StarRepository => starRepository(cmd).fold(
+      fail => sender ! ErrorMessage(s"Error $fail occurred on $cmd"),
+      repository => persist(cmd) { _ => updateState(repository) }
     )
   }
 
@@ -80,12 +84,17 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
     case cmd: StarRepository => starRepository(cmd).fold(
       fail => sender ! ErrorMessage(s"Error $fail occurred on $cmd"),
       repository => persist(cmd) { _ =>
-        val event = RepositoryStarred(repository.id, repository.fullName, repository.stars)
+        val event = RepositoryStarred(repository.id, repository.fullName, repository.totalStars)
         updateState(repository)
         context.system.eventStream.publish(event)
       }
     )
-    case "print" => println(ListMap(state.repositories.toSeq.sortWith(_._2.stars > _._2.stars): _*).take(10))
+    case cmd: GetRepository => sender ! state.get(cmd.id)
+    case GetAllRepositories => sender ! state.repositories
+    case "print" => {
+      println(state.repositories.take(10))
+      println(state.repositories.toSeq.sortWith(_._2.totalStars > _._2.totalStars).take(10))
+    }
   }
 
   def persistenceId: String = "repositories"
@@ -94,23 +103,17 @@ class RepositoryProcessor extends PersistentActor with ActorLogging {
 
   def createRepository(cmd: NewRepository): DomainValidation[Repository] =
     state.get(cmd.id) match {
-      case Some(repository) => s"Repository for $cmd already exists".failureNel
+      case Some(repository) => repository.success
       case None => Repository.create(cmd)
     }
 
   def starRepository(cmd: StarRepository): DomainValidation[Repository] = {
     upsertRepository(NewRepository(cmd.id, cmd.fullName, None)) { repository =>
-      repository.incrementStars(cmd.stars)
+      repository.incrementStars(cmd.stars, cmd.date)
     }
   }
 
-  def updateRepository[A <: Repository](cmd: RepositoryCommand)(fn: Repository => DomainValidation[A]): DomainValidation[A] =
-    state.get(cmd.id) match {
-      case Some(repository) => fn(repository)
-      case None => s"Repository for $cmd does not exists".failureNel
-    }
-
-  def upsertRepository(cmd: NewRepository)(fn: Repository => DomainValidation[Repository]): DomainValidation[Repository] =
+  def upsertRepository[A <: Repository](cmd: NewRepository)(fn: Repository => DomainValidation[A]): DomainValidation[A] =
     state.get(cmd.id) match {
       case Some(repository) => fn(repository)
       case None =>

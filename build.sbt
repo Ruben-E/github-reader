@@ -14,3 +14,12 @@ libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.8"
 libraryDependencies += "com.okumin" %% "akka-persistence-sql-async" % "0.4.0"
 libraryDependencies += "com.github.mauricio" %% "postgresql-async" % "0.2.20"
 libraryDependencies += "com.github.dnvriend" %% "akka-persistence-inmemory" % "2.4.17.1"
+
+libraryDependencies ++= Seq(
+  "org.sangria-graphql" %% "sangria" % "1.0.0",
+  "org.sangria-graphql" %% "sangria-spray-json" % "1.0.0",
+  "com.typesafe.akka" %% "akka-http" % "10.0.0",
+  "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.0",
+
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test
+)

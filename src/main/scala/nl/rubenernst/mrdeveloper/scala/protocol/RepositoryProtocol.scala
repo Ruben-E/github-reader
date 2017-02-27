@@ -1,15 +1,17 @@
 package nl.rubenernst.mrdeveloper.scala.protocol
 
-/**
-  * Created by rubenernst on 21/12/2016.
-  */
+import java.time.LocalDate
+
+
 object RepositoryProtocol {
   sealed trait RepositoryCommand {
     def id: Long
   }
 
   final case class NewRepository(id: Long, fullName: String, description: Option[String]) extends RepositoryCommand
-  final case class StarRepository(id: Long, fullName: String, stars: Long) extends RepositoryCommand
+  final case class StarRepository(id: Long, fullName: String, stars: Long, date: LocalDate) extends RepositoryCommand
+  final case class GetRepository(id: Long) extends RepositoryCommand
+  final case class GetAllRepositories()
 
   sealed trait RepositoryEvent {
     def id: Long
